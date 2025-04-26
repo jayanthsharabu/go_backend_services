@@ -35,10 +35,11 @@
         let brokerButton = document.getElementById("btn");
         let authButton = document.getElementById("auth-btn");
         let output = document.getElementById("output");
-        let payload = document.getElementById("payload");
-        let received = document.getElementById("received");
+        let sentPayloadDisplay = document.getElementById("payload");
+        let receivedDisplay = document.getElementById("received");
+
         authButton.addEventListener("click", (e) => {
-            const payload = {
+            const authPayload = {
                 action : "auth",
                 auth : {
                     email : "test@test.com",
@@ -49,47 +50,76 @@
             const headers = new Headers();
             headers.append("Content-Type", "application/json");
 
-            const body = {
+            const requestOptions = {
                 method : "POST",
                 headers : headers,
-                body : JSON.stringify(payload)
+                body : JSON.stringify(authPayload)
             }
 
-            fetch("http:\/\/localhost:8080/handle", body)
-            .then(response => response.json())
+            // Display what was sent
+            sentPayloadDisplay.innerHTML = JSON.stringify(authPayload, undefined, 4);
+            
+            // Clear previous output
+            output.innerHTML = "<span class='text-muted'>Sending request to broker service...</span>";
+
+            fetch("http:\/\/localhost:8080/handle", requestOptions)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                payload.innerHTML = JSON.stringify(payload, undefined, 4)
-                received.innerHTML = JSON.stringify(data, undefined, 4)
+                // Display what was received
+                receivedDisplay.innerHTML = JSON.stringify(data, undefined, 4);
+                
                 if (data.error) {
-                    output.innerHTML += `<br><strong>Error : ${data.message} </strong></br>`
-                }else{
-                    output.innerHTML += `<br><strong>Response from broker ${data.message} </strong></br>`
+                    output.innerHTML = `<br><strong>Error: ${data.message}</strong></br>`;
+                } else {
+                    output.innerHTML = `<br><strong>Response from broker: ${data.message}</strong></br>`;
                 }
             })
             .catch((error) => {
-                output.innerHTML += "<br>Error : " + error.message + "</br>";
-            })
+                receivedDisplay.innerHTML = `{"error": true, "message": "${error.message}"}`;
+                output.innerHTML = `<br><strong>Error: ${error.message}</strong></br>`;
+            });
         });
 
         brokerButton.addEventListener("click", (e) => {
-            const body = {
+            const requestOptions = {
                 method : "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                }
             }
 
-            fetch("http:\/\/localhost:8080", body)
-            .then(response => response.json())
+            // Display what was sent
+            sentPayloadDisplay.innerHTML = "Empty POST request";
+            
+            // Clear previous output
+            output.innerHTML = "<span class='text-muted'>Sending request to broker service...</span>";
+
+            fetch("http:\/\/localhost:8080", requestOptions)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                payload.innerHTML = "empty post reqest "
-                received.innerHTML = JSON.stringify(data, undefined, 4)
+                // Display what was received
+                receivedDisplay.innerHTML = JSON.stringify(data, undefined, 4);
+                
                 if (data.error) {
-                    console.log("error")
-                }else{
-                    output.innerHTML += `<br><strong>Response from broker ${data.message} </strong></br>`
+                    output.innerHTML = `<br><strong>Error: ${data.message}</strong></br>`;
+                } else {
+                    output.innerHTML = `<br><strong>Response from broker: ${data.message}</strong></br>`;
                 }
             })
             .catch((error) => {
-                output.innerHTML += "<br>Error : " + error.message + "</br>";
-            })
+                receivedDisplay.innerHTML = `{"error": true, "message": "${error.message}"}`;
+                output.innerHTML = `<br><strong>Error: ${error.message}</strong></br>`;
+            });
         });
     </script>
 {{end}}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 )
 
 type RequestPayload struct {
@@ -21,7 +22,7 @@ func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
 
 	payload := JsonResponse{
 		Error:   false,
-		Message: "fuck",
+		Message: "Broker service hit successfully",
 	}
 
 	err := app.writeJSON(w, http.StatusOK, payload)
@@ -53,19 +54,33 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 
 	//json => service
-	jsonData, _ := json.MarshalIndent(a, "", "\t")
-
-	//call
-	request, err := http.NewRequest("POST", "http://authentication-service/authenticate", bytes.NewBuffer(jsonData))
+	jsonData, err := json.MarshalIndent(a, "", "\t")
 	if err != nil {
 		app.errorJSON(w, err)
 		return
 	}
 
+	// Define auth service URL - allow override by environment variable
+	authServiceURL := "http://authentication-service/authenticate"
+
+	// For local development without Docker
+	if os.Getenv("AUTH_SERVICE_URL") != "" {
+		authServiceURL = os.Getenv("AUTH_SERVICE_URL")
+	}
+
+	//call
+	request, err := http.NewRequest("POST", authServiceURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		app.errorJSON(w, err)
+		app.errorJSON(w, errors.New("error calling auth service: "+err.Error()))
 		return
 	}
 	defer response.Body.Close()
@@ -76,7 +91,7 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 		app.errorJSON(w, errors.New("invalid credentials"))
 		return
 	} else if response.StatusCode != http.StatusAccepted {
-		app.errorJSON(w, errors.New("error calling auth service"))
+		app.errorJSON(w, errors.New("error calling auth service: invalid status: "+response.Status))
 		return
 	}
 
@@ -90,7 +105,7 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	}
 
 	if jsonFromService.Error {
-		app.errorJSON(w, err, http.StatusUnauthorized)
+		app.errorJSON(w, errors.New(jsonFromService.Message), http.StatusUnauthorized)
 		return
 	}
 

@@ -2,13 +2,18 @@ package main
 
 import (
 	"Authentication-service/data"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
+
+	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 const PORT = "80"
@@ -25,6 +30,9 @@ func main() {
 	log.Println("Starting authentication service")
 
 	conn, err := connectToDB()
+	if err != nil {
+		log.Panic("Cannot connect to database:", err)
+	}
 
 	if conn == nil {
 		log.Panic("Can't connect to Postgres!")
@@ -40,12 +48,35 @@ func main() {
 		Handler: app.routes(),
 	}
 
-	err = srv.ListenAndServe()
+	// Start the server in a goroutine
+	go func() {
+		err = srv.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
 
-	if err != nil {
-		log.Panic(err)
+	// Create a channel to listen for OS signals
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Block until signal is received
+	<-quit
+	log.Println("Shutting down server...")
+
+	// Create a deadline for shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Attempt graceful shutdown
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
+	// Close database connection
+	conn.Close()
+
+	log.Println("Server exited properly")
 }
 
 func openDB(dsn string) (*sql.DB, error) {
@@ -67,11 +98,14 @@ func openDB(dsn string) (*sql.DB, error) {
 
 func connectToDB() (*sql.DB, error) {
 	dsn := os.Getenv("DSN")
+	if dsn == "" {
+		return nil, errors.New("DSN environment variable not set")
+	}
 
 	for {
 		connection, err := openDB(dsn)
 		if err != nil {
-			log.Println("Postgres not yet ready...")
+			log.Println("Postgres not yet ready...", err)
 			counts++
 		} else {
 			log.Println("Connected to Postgres!")
