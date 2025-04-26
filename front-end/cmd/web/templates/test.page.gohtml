@@ -6,7 +6,8 @@
             <div class="col">
                 <h1 class="mt-5">Test microservices</h1>
                 <hr>
-                <a id = "broker-button" class="btn btn-primary btn-lg" href = "javascript:void(0)">Test Broker</a>
+                <a id = "btn" class="btn btn-primary btn-lg" href = "javascript:void(0)">Test Btn</a>
+                <a id = "auth-btn" class="btn btn-primary btn-lg" href = "javascript:void(0)">Test Auth</a>
                 <div id="output" class="mt-5" style="outline: 1px solid silver; padding: 2em;">
                     <span class="text-muted">Output shows here...</span>
                 </div>
@@ -31,10 +32,44 @@
 
 {{define "js"}}
     <script>
-        let brokerButton = document.getElementById("broker-button");
+        let brokerButton = document.getElementById("btn");
+        let authButton = document.getElementById("auth-btn");
         let output = document.getElementById("output");
         let payload = document.getElementById("payload");
         let received = document.getElementById("received");
+        authButton.addEventListener("click", (e) => {
+            const payload = {
+                action : "auth",
+                auth : {
+                    email : "test@test.com",
+                    password : "password"
+                }
+            }
+
+            const headers = new Headers();
+            headers.append("Content-Type", "application/json");
+
+            const body = {
+                method : "POST",
+                headers : headers,
+                body : JSON.stringify(payload)
+            }
+
+            fetch("http:\/\/localhost:8080/handle", body)
+            .then(response => response.json())
+            .then(data => {
+                payload.innerHTML = JSON.stringify(payload, undefined, 4)
+                received.innerHTML = JSON.stringify(data, undefined, 4)
+                if (data.error) {
+                    output.innerHTML += `<br><strong>Error : ${data.message} </strong></br>`
+                }else{
+                    output.innerHTML += `<br><strong>Response from broker ${data.message} </strong></br>`
+                }
+            })
+            .catch((error) => {
+                output.innerHTML += "<br>Error : " + error.message + "</br>";
+            })
+        });
 
         brokerButton.addEventListener("click", (e) => {
             const body = {
