@@ -8,6 +8,7 @@
                 <hr>
                 <a id = "btn" class="btn btn-primary btn-lg" href = "javascript:void(0)">Test Btn</a>
                 <a id = "auth-btn" class="btn btn-primary btn-lg" href = "javascript:void(0)">Test Auth</a>
+                <a id = "log-btn" class="btn btn-primary btn-lg" href = "javascript:void(0)">Test Log</a>
                 <div id="output" class="mt-5" style="outline: 1px solid silver; padding: 2em;">
                     <span class="text-muted">Output shows here...</span>
                 </div>
@@ -34,9 +35,58 @@
     <script>
         let brokerButton = document.getElementById("btn");
         let authButton = document.getElementById("auth-btn");
+        let logButton = document.getElementById("log-btn");
         let output = document.getElementById("output");
         let sentPayloadDisplay = document.getElementById("payload");
         let receivedDisplay = document.getElementById("received");
+
+        logButton.addEventListener("click", (e) => {
+            const logPayload = {
+                action : "log",
+                log : {
+                    name : "test",
+                    data : "test"
+                }
+            }
+
+            const headers = new Headers();
+            headers.append("Content-Type", "application/json");
+
+            const requestOptions = {
+                method : "POST",
+                headers : headers,
+                body : JSON.stringify(logPayload)
+            }
+
+            // Display what was sent
+            sentPayloadDisplay.innerHTML = JSON.stringify(logPayload, undefined, 4);
+
+            // Clear previous output
+            output.innerHTML = "<span class='text-muted'>Sending request to broker service...</span>";
+            
+            fetch("http:\/\/localhost:8080/handle", requestOptions)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Display what was received
+                receivedDisplay.innerHTML = JSON.stringify(data, undefined, 4);
+
+                if (data.error) {
+                    output.innerHTML = `<br><strong>Error: ${data.message}</strong></br>`;
+                } else {
+                    output.innerHTML = `<br><strong>Response from broker: ${data.message}</strong></br>`;
+                }
+            })
+            .catch((error) => {
+                receivedDisplay.innerHTML = `{"error": true, "message": "${error.message}"}`;
+                output.innerHTML = `<br><strong>Error: ${error.message}</strong></br>`;
+            });
+        });
 
         authButton.addEventListener("click", (e) => {
             const authPayload = {
