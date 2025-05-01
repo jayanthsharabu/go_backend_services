@@ -1,7 +1,7 @@
 package main
 
 import (
-	"Logger-service/data"
+	"log-service/data"
 	"net/http"
 )
 
@@ -10,12 +10,12 @@ type JSONPayload struct {
 	Data string `json:"data"`
 }
 
-func (app *Config) writeLog(w http.ResponseWriter, r *http.Request) error {
+func (app *Config) WriteLog(w http.ResponseWriter, r *http.Request) {
+	// read json into var
 	var requestPayload JSONPayload
-
 	_ = app.readJSON(w, r, &requestPayload)
 
-	//insert
+	// insert data
 	event := data.LogEntry{
 		Name: requestPayload.Name,
 		Data: requestPayload.Data,
@@ -24,14 +24,13 @@ func (app *Config) writeLog(w http.ResponseWriter, r *http.Request) error {
 	err := app.Models.LogEntry.Insert(event)
 	if err != nil {
 		app.errorJSON(w, err)
-		return err
+		return
 	}
 
-	resp := JsonResponse{
-		Error:   false,
+	resp := jsonResponse{
+		Error: false,
 		Message: "logged",
 	}
 
 	app.writeJSON(w, http.StatusAccepted, resp)
-	return nil
 }

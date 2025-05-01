@@ -1,7 +1,7 @@
-from alpine:latest
+FROM alpine:latest
 
 RUN mkdir /app
 
-COPY authApp /app 
+COPY authApp /app
 
-CMD [ "/app/authApp" ]
+CMD [ "/app/authApp"]
